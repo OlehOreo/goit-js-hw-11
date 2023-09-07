@@ -1,129 +1,160 @@
-import SlimSelect from 'slim-select';
 import Notiflix from 'notiflix';
-import { fetchBreeds, fetchCatByBreed } from './js/cat-api';
+import SimpleLightbox from 'simplelightbox';
+import 'simplelightbox/dist/simple-lightbox.min.css';
 
-const elements = {
-  select: document.querySelector('.breed-select'),
-  divCatInf: document.querySelector('.cat-info'),
-  loader: document.querySelector('.loader'),
-};
+// js файли
+import getImages from './js/pixabay-api';
+import createMarkup from './js/create-markup';
 
-// Загальні налаштування сповіщень Notifix
+// // Загальні налаштування сповіщень Notifix
 
 Notiflix.Notify.init({
   width: '600px',
-  position: 'center-top',
+  position: 'right-top',
   fontSize: '20px',
   distance: '10px',
-  timeout: 6000,
+  timeout: 3000,
   opacity: 1,
   clickToClose: true,
   textColor: '#fff',
 });
+// Створюю екземпляр класу SimpleLightbox
+const lightbox = new SimpleLightbox('.gallery a', {
+  captionType: 'attr',
+  captionsData: 'alt',
+  captionDelay: 250,
+});
 
-// Зберігає значення для перевикористання у функціях
-let breedInf = [];
+// Створюю змінні
+const maxImagesPerPage = 40;
+let page;
+let totalPages;
+let amountOfImages = 0;
+let query = '';
 
-// Функція наповнює селект породами котів
-async function addSelectOption() {
-  loadingElements(true);
+const elements = {
+  form: document.querySelector('#search-form'),
+  galery: document.querySelector('.js-gallery'),
+  loadBtn: document.querySelector('.js-load-more'),
+};
+const options = {
+  root: null,
+  rootMargin: '200px',
+  // threshold: 1,
+};
+
+// Спостерігає за входженнями елемента у вюпорт
+const observer = new IntersectionObserver(checkScrollPosition, options);
+
+// Додаю слухач подій
+elements.form.addEventListener('submit', handlerSearch);
+elements.loadBtn.addEventListener('click', handlerLoadMore);
+
+async function handlerSearch(evt) {
+  evt.preventDefault();
+  // Записую у змінну запит пошуку введений у інпут
+  query = evt.currentTarget.elements.searchQuery.value;
+
+  // Перевірка щоб користувач не відправив пусте поле
+  if (query === '') {
+    Notiflix.Notify.failure('Please enter a value in the field.');
+    return;
+  }
+  Notiflix.Loading.standard();
+
+  // При кожному новому пошуку скидується значення сторінки до 1
+  page = 1;
+  // Пири кожному новому пошуку очищується сторінка
+  elements.galery.innerHTML = '';
+  // Приховую кнопку load-more
+  elements.loadBtn.classList.replace('load-more', 'load-more-hidden');
 
   try {
-    //   Запис в змінну проміса порід
-    const data = await fetchBreeds();
+    //Виклик функції з запитом на api
+    const { hits, totalHits } = await getImages(query, page);
+    Notiflix.Loading.remove();
+    //Визначаю загальну кількість сторінок
+    totalPages = totalHits / maxImagesPerPage;
 
-    // завантаження інформації
-    loadingElements(false);
+    // Валідація інпута
+    inputValidation(hits, totalHits);
 
-    breedInf = data;
+    // Розмітка фото на сторінку
+    elements.galery.innerHTML = createMarkup(hits);
 
-    // Розмітка опцій
-    elements.select.innerHTML =
-      '<option value="" data-placeholder="true"></option>';
-    elements.select.innerHTML += data
-      .map(({ name, id }) => {
-        return `<option value="${id}">${name}</option>`;
-      })
-      .join('');
-
-    // Кастомний селект
-    new SlimSelect({
-      select: elements.select,
-      settings: {
-        placeholderText: 'Choose a cat breed',
-      },
-    });
-  } catch (error) {
-    // Виклик функції при помилці
-    isError(error);
-  }
-}
-
-addSelectOption();
-
-// Подія change на селекті
-
-elements.select.addEventListener('change', selectBreeds);
-
-// ІНФОРМАЦІЯ ПРО КОТА
-function selectBreeds(evt) {
-  // Завантаження інформації
-  loadingElements(true);
-
-  const selectedCat = evt.currentTarget.value;
-  const descrBreeds = breedInf.find(cat => cat.id === selectedCat);
-  const breedsId = descrBreeds.id;
-
-  // Завантаження даних про кота
-  fetchCatByBreed(breedsId)
-    .then(data => {
-      loadingElements(false);
-
-      const infoAboutCat = data[0].breeds[0];
-      const image = data[0].url;
-
-      // розмітка сторінки даними про кота
-      createMarkupCat(infoAboutCat, image);
-    })
-    .catch(error => {
-      isError();
-    });
-
-  // Функція створення розмітки опису вибраного кота
-  function createMarkupCat({ name, description, temperament }, img) {
-    try {
-      elements.divCatInf.innerHTML = ` 
-    <div class="thumb">
-    <img src="${img}" alt="${name}" class="img"/> </div>
-      <div class="container">
-        <h2 class="heading">${name}</h2>
-        <p class="text">${description}</p>
-         <p class="text"><span class="bold-text">Temperament:</span>
-        <span>${temperament}.</span></p>
-      </div>`;
-    } catch (error) {
-      console.log(error);
+    // Умова для показу кнопки load-more
+    if (page < totalHits) {
+      elements.loadBtn.classList.replace('load-more-hidden', 'load-more');
     }
+    // Стежить за входженням у вюпорт кнопки
+    observer.observe(elements.loadBtn);
+
+    // Оновлення вмісту лайтбокса
+    lightbox.refresh();
+  } catch (error) {
+    console.log(error);
+    Notiflix.Notify.failure('Something went wrong, please reload page.');
   }
 }
 
-// ОПРАЦЮВАННЯ СТАНУ ЗАВАНТАЖЕННЯ
+// Клік на кнопку load-more
+async function handlerLoadMore() {
+  page += 1;
 
-function loadingElements(loading) {
-  if (loading) {
-    elements.divCatInf.classList.add('visually-hidden');
-    elements.loader.style.display = 'inline-block';
+  // При кліку на кнопку робимо запит на ipi
+  getImages(query, page)
+    .then(data => {
+      elements.galery.insertAdjacentHTML('beforeend', createMarkup(data.hits));
+
+      // Після додавання нових фото оновлюєм лайтбокс
+      lightbox.refresh();
+
+      // Плавне прокручування
+      const { height: cardHeight } = document
+        .querySelector('.js-gallery')
+        .firstElementChild.getBoundingClientRect();
+
+      window.scrollBy({
+        top: cardHeight * 1.8,
+        behavior: 'smooth',
+      });
+      checkScrollPosition(page);
+
+      // Умова при якій кнопка load-more ховається
+      if (page >= totalPages) {
+        //obserer перестає слідкувати за кнопкою
+        observer.unobserve(elements.loadBtn);
+      }
+    })
+    .catch(err => console.log(err));
+}
+
+// Валідація інпута
+function inputValidation(arrPhoto, quantityPhoto) {
+  if (arrPhoto.length === 0) {
+    Notiflix.Notify.failure(
+      'Sorry, there are no images matching your search query. Please try again.'
+    );
+    return;
+  } else if (quantityPhoto < maxImagesPerPage) {
+    Notiflix.Notify.warning(`We found only ${quantityPhoto} pictures`);
+    return;
   } else {
-    elements.divCatInf.classList.remove('visually-hidden');
-    elements.loader.style.display = 'none';
+    Notiflix.Notify.success(`Hooray! We found ${quantityPhoto} images`);
   }
 }
-
-// Функція при помилці приховує елементи і виводить помилку
-function isError(error) {
-  console.log(error);
-  elements.divCatInf.style.display = 'none';
-  Notiflix.Notify.failure(
-    'Oops! Something went wrong! Try reloading the page!'
-  );
+// Визначаєпосизцію кнопки
+function checkScrollPosition(entries) {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      if (page < totalPages) {
+        elements.loadBtn.classList.replace('load-more-hidden', 'load-more');
+      } else if (page > 1 && page >= totalPages) {
+        Notiflix.Notify.info(
+          "We're sorry, but you've reached the end of search results."
+        );
+        elements.loadBtn.classList.replace('load-more', 'load-more-hidden');
+      }
+    }
+  });
 }
