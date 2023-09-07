@@ -36,23 +36,7 @@ body {
 .input:focus {
   border: 3px solid #01487bed;
 }
-.search {
-  margin-left: 20px;
 
-  height: 50px;
-  font-size: 23px;
-  border: none;
-  outline: none;
-
-  border-radius: 22px;
-
-  box-sizing: border-box;
-  padding: 0 18px;
-}
-.search:hover {
-  background-color: #01487bed;
-  color: #ffffff;
-}
 .gallery {
   display: flex;
   flex-wrap: wrap;
@@ -101,6 +85,25 @@ body {
   letter-spacing: 0.08em;
 }
 
+.search {
+  margin-left: 20px;
+
+  height: 50px;
+  font-size: 23px;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  border-radius: 22px;
+  padding: 10px 20px;
+  text-align: center;
+  box-sizing: border-box;
+
+  transition: background-color 0.3s ease-in-out, transform 0.2s ease-in-out;
+}
+.search:hover {
+  background-color: #01487bed;
+  color: #ffffff;
+}
 /* Кнопка load-more  */
 .button-container {
   display: flex;
@@ -113,20 +116,30 @@ body {
   display: none;
 }
 .load-more {
-  display: inline-block;
+  height: 50px;
+  font-size: 23px;
+  border: none;
+  outline: none;
+
+  border-radius: 22px;
+
+  /* box-sizing: border-box; */
+  /* padding: 0 18px; */
+  /* display: inline-block; */
   padding: 10px 20px;
-  font-size: 1.2em;
+
   font-weight: bold;
   text-align: center;
-  text-transform: uppercase;
-  border: none;
-  border-radius: 5px;
-  background-color: #007bff;
+
+  background-color: #01487bed;
   color: #fff;
   cursor: pointer;
   transition: background-color 0.3s ease-in-out, transform 0.2s ease-in-out;
 }
-
+.load-more:hover {
+  background: #d7dde8;
+  color: #616060;
+}
 /* стилізація SimpleLightbox кількість зображень */
 .sl-wrapper .sl-counter {
   font-size: 40px;
